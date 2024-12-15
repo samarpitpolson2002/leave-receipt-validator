@@ -228,7 +228,9 @@
                 <br><br><br>
                 <tr><th>Field</th><th>Value</th></tr>
                     <tr><td>Leave ID</td><td>${data._id}</td></tr>
-                    <tr><td>Employee ID</td><td>${data.employee}</td></tr>
+                    <tr><td>Employee Name</td><td>${
+                        data.employee.fullName
+                    }</td></tr>
                     <tr><td>Leave Type</td><td>${data.leaveType}</td></tr>
                     <tr><td>Reason</td><td>${data.reason}</td></tr>
                     <tr><td>From Date</td><td>${new Date(
@@ -238,7 +240,9 @@
                         data.toDate
                     ).toLocaleDateString()}</td></tr>
                     <tr><td>Duration</td><td>${data.duration} days</td></tr>
-                    <tr><td>Approver ID</td><td>${data.approver}</td></tr>
+                    <tr><td>Approver Name</td><td>${
+                        data.approver.fullName
+                    }</td></tr>
                     <tr><td>Status</td><td>${data.status}</td></tr>
                     <tr><td>Application Date</td><td>${new Date(
                         data.applicationDate
