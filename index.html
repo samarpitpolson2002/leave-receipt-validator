@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>QR Code Scanner</title>
+
+        <!-- Use the correct CDN URL for Html5Qrcode -->
+        <script src="https://cdn.jsdelivr.net/npm/html5-qrcode/minified/html5-qrcode.min.js"></script>
+        <style>
+            #response-data {
+                margin-top: 20px;
+                padding: 10px;
+                border: 1px solid #ccc;
+                border-radius: 5px;
+                background-color: #f9f9f9;
+            }
+
+            table {
+                width: 100%;
+                border-collapse: collapse;
+            }
+
+            table th,
+            table td {
+                border: 1px solid #ccc;
+                padding: 8px;
+                text-align: left;
+            }
+
+            table th {
+                background-color: #f2f2f2;
+            }
+        </style>
+    </head>
+    <body>
+        <!-- Login Form -->
+        <h2>Login and Scan QR Code</h2>
+
+        <div id="login-form">
+            <input type="text" id="username" placeholder="Username" required />
+            <input
+                type="password"
+                id="password"
+                placeholder="Password"
+                required
+            />
+            <button onclick="login()">Login</button>
+        </div>
+
+        <!-- QR Code Scanner -->
+        <div
+            id="qr-reader"
+            style="width: 500px; height: 500px; display: none"
+        ></div>
+
+        <!-- Section to Display Formatted Response -->
+        <div id="response-data" style="display: none">
+            <h3>Leave Details</h3>
+            <table>
+                <tbody id="response-table"></tbody>
+            </table>
+        </div>
+
+        <script>
+            let accessToken = ""; // Variable to store access token
+            let html5QrCode;
+
+            // Function to handle login and get access token
+            async function login() {
+                const username = document.getElementById("username").value;
+                const password = document.getElementById("password").value;
+
+                // Send the login request to the API
+                try {
+                    const response = await fetch(
+                        "https://railway-leave-managment.onrender.com/api/v1/staff/login-staff",
+                        {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify({ username, password }),
+                        }
+                    );
+
+                    if (!response.ok) {
+                        throw new Error("Login failed");
+                    }
+
+                    const data = await response.json();
+                    accessToken = data.accessToken; // Save the access token
+
+                    // If login is successful, initialize the QR code scanner
+                    initializeScanner();
+                } catch (error) {
+                    alert("Error logging in: " + error.message);
+                }
+            }
+
+            // Function to initialize the QR code scanner
+            function initializeScanner() {
+                // Hide login form and show the QR scanner
+                document.getElementById("login-form").style.display = "none";
+                document.getElementById("qr-reader").style.display = "block";
+
+                // Initialize the Html5Qrcode scanner
+                html5QrCode = new Html5Qrcode("qr-reader");
+
+                html5QrCode
+                    .start(
+                        { facingMode: "environment" }, // Use the back camera
+                        {
+                            fps: 10, // Frames per second
+                            qrbox: 250, // Size of the scanning box
+                        },
+                        (qrCodeMessage) => {
+                            // Handle the decoded QR code data
+                            console.log("QR Code scanned:", qrCodeMessage);
+
+                            // Extract `leave_id` from the scanned data
+                            const leaveId = extractLeaveId(qrCodeMessage);
+                            if (leaveId) {
+                                // Send the leave_id to the API
+                                sendQrData(leaveId);
+                            } else {
+                                alert(
+                                    "Invalid QR Code format. Could not find leave_id."
+                                );
+                            }
+                        },
+                        (errorMessage) => {
+                            console.log("Error during scanning:", errorMessage);
+                        }
+                    )
+                    .catch((err) => {
+                        console.error("Error starting QR code scanner:", err);
+                    });
+            }
+
+            // Function to extract leave_id from QR Code data
+            function extractLeaveId(qrCodeData) {
+                // Match the leave_id using regex
+                const match = qrCodeData.match(/leave_id:\s*([a-f0-9]+)/);
+                return match ? match[1] : null; // Return the captured leave_id or null if not found
+            }
+
+            // Function to send the leave_id to the API
+            async function sendQrData(leaveId) {
+                try {
+                    const response = await fetch(
+                        "https://railway-leave-managment.onrender.com/api/v1/admin/validate-receipt",
+                        {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                Authorization: `Bearer ${accessToken}`, // Include the access token in the headers
+                            },
+                            body: JSON.stringify({ id: leaveId }),
+                        }
+                    );
+
+                    if (!response.ok) {
+                        throw new Error("Failed to send leave_id");
+                    }
+
+                    const result = await response.json();
+                    console.log("Result from API:", result);
+
+                    // Display formatted response
+                    displayResponse(result.data);
+                } catch (error) {
+                    console.error("Error sending leave_id:", error);
+                    alert("Error sending leave_id: " + error.message);
+                }
+            }
+
+            // Function to display formatted response
+            function displayResponse(data) {
+                const responseTable = document.getElementById("response-table");
+                responseTable.innerHTML = `
+                    <tr><th>Field</th><th>Value</th></tr>
+                    <tr><td>Leave ID</td><td>${data._id}</td></tr>
+                    <tr><td>Employee ID</td><td>${data.employee}</td></tr>
+                    <tr><td>Leave Type</td><td>${data.leaveType}</td></tr>
+                    <tr><td>Reason</td><td>${data.reason}</td></tr>
+                    <tr><td>From Date</td><td>${new Date(
+                        data.fromDate
+                    ).toLocaleDateString()}</td></tr>
+                    <tr><td>To Date</td><td>${new Date(
+                        data.toDate
+                    ).toLocaleDateString()}</td></tr>
+                    <tr><td>Duration</td><td>${data.duration} days</td></tr>
+                    <tr><td>Approver ID</td><td>${data.approver}</td></tr>
+                    <tr><td>Status</td><td>${data.status}</td></tr>
+                    <tr><td>Application Date</td><td>${new Date(
+                        data.applicationDate
+                    ).toLocaleDateString()}</td></tr>
+                    <tr><td>Year</td><td>${data.year}</td></tr>
+                    <tr><td>Supporting Documents</td>
+                        <td>
+                            ${data.supportingDocuments
+                                .map((doc) => `<p>${doc.fileName}</p>`)
+                                .join("")}
+                        </td>
+                    </tr>
+                    <tr><td>Created At</td><td>${new Date(
+                        data.createdAt
+                    ).toLocaleString()}</td></tr>
+                    <tr><td>Updated At</td><td>${new Date(
+                        data.updatedAt
+                    ).toLocaleString()}</td></tr>
+                `;
+
+                // Show the response-data section
+                document.getElementById("response-data").style.display =
+                    "block";
+            }
+        </script>
+    </body>
+</html>
