@@ -135,7 +135,7 @@
                     }
 
                     const data = await response.json();
-                    accessToken = data.accessToken; // Save the access token
+                    accessToken = data.data.accessToken; // Save the access token
 
                     // If login is successful, initialize the QR code scanner
                     initializeScanner();
@@ -225,7 +225,6 @@
             function displayResponse(data) {
                 const responseTable = document.getElementById("response-table");
                 responseTable.innerHTML = `
-                <br><br><br>
                 <tr><th>Field</th><th>Value</th></tr>
                     <tr><td>Leave ID</td><td>${data._id}</td></tr>
                     <tr><td>Employee Name</td><td>${
